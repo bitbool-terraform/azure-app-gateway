@@ -1,0 +1,143 @@
+locals {
+
+  app_gateway_name = format("%s-%s-%s",var.project,var.systemenv,var.name)
+
+  name_prefix = format("%s-%s",var.project,var.systemenv)
+
+  gateway_tags  = {
+    project   = var.project
+    systemenv = var.systemenv
+    project   = var.project
+  }
+
+  backend_address_pools = var.backend_targets
+
+distinct_hostnames = distinct([
+    for entry in var.routing_rules : entry.hostname
+  ])
+
+
+  rules_grouped_by_hostname = {
+    for host in local.distinct_hostnames : host => {
+      for name, obj in var.routing_rules : name => {
+        backend_target = obj.backend_target
+        backend_port   = obj.backend_port
+        path           = lookup(obj,"path","/")
+        use_letsencrypt= lookup(obj,"use_letsencrypt",false)
+      } if obj.hostname == host
+    }
+  }
+
+
+http_listeners = merge(
+  flatten([
+    [
+      for k, v in local.rules_grouped_by_hostname : {
+        "${replace(k, ".", "-")}-http" = {
+          hostname        = k
+          port            = 80
+          protocol        = "Http"
+          use_letsencrypt = local.ssl_certificates[k]==replace(k, ".", "-") ? true : false
+        }
+      }
+    ],
+    [
+      for k, v in local.rules_grouped_by_hostname : {
+        "${replace(k, ".", "-")}-ssl" = {
+          hostname             = k
+          port                 = 443
+          protocol             = "Https"
+          ssl_certificate_name = local.ssl_certificates[k]
+        }
+      }
+    ]
+  ])...
+)
+
+
+ssl_certificates = {
+  for host, _ in local.rules_grouped_by_hostname : host => (
+    can(
+      [for k, cert in var.certificates_custom : cert.name if cert.hostname == host][0]
+    )
+    ? [for k, cert in var.certificates_custom : cert.name if cert.hostname == host][0]
+    : replace(host, ".", "-")
+  )
+}
+
+
+backend_http_settings = {
+for k, v in var.routing_rules :
+    k => {
+        port                    = v.backend_port
+        protocol                = "Http"
+        cookie_based_affinity   = lookup(v,"cookie_based_affinity",var.cookie_based_affinity)
+        request_timeout         = lookup(v,"request_timeout",var.request_timeout)
+        hostname                = v.hostname
+    }
+}
+
+
+url_path_maps = merge(local.url_path_maps_ssl,local.url_path_maps_http)
+
+url_path_maps_http = {
+  for lstK, lstV in local.http_listeners: 
+      lstK => {
+        default_redirect_configuration_name = lstK
+
+        path_rules = merge({
+            for appK, appV in local.rules_grouped_by_hostname[lstV.hostname]:
+                "${lstK}-${appK}-redirect" => {
+                    paths = [appV.path]
+                    redirect_configuration_name = lstK
+                }},
+                lstV.use_letsencrypt ? {
+                "${lstK}-letsencrypt" = {
+                    paths = [".well-known/*"]
+                    backend_address_pool_name = "letsencrypt1"
+                    backend_http_settings_name =  "letsencrypt2"
+                    }
+                }: {}
+                )
+                
+        
+      } if lookup(lstV,"protocol","") == "Http"
+}
+
+
+url_path_maps_ssl = {
+  for lstK, lstV in local.http_listeners: 
+      lstK => {
+        default_backend_address_pool_name = one([for rule in values(local.rules_grouped_by_hostname[lstV.hostname]) : rule.backend_target if rule.path == "/" ])
+        default_backend_http_settings_name = format("%s-%s",local.name_prefix,one([for k,v in local.rules_grouped_by_hostname[lstV.hostname] : k if v.path == "/" ]))
+
+        path_rules = {
+            for appK, appV in local.rules_grouped_by_hostname[lstV.hostname]:
+                "${lstK}-${appK}" => {
+                    paths = [appV.path]
+                    backend_address_pool_name = appV.backend_target
+                    backend_http_settings_name = format("%s-%s",local.name_prefix,appK)
+                }
+        }
+      } if lookup(lstV,"protocol","") == "Https"
+}
+
+
+redirections = {
+      for lstK, lstV in local.http_listeners: 
+      lstK => {
+        redirect_type = "Permanent"
+        target_listener_name = replace(lstK, "-http", "-ssl")
+        include_path = true
+        include_query_string = true
+        } if lookup(lstV,"protocol","") == "Http"
+      } 
+
+
+
+
+}
+
+
+
+
