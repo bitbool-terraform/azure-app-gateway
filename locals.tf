@@ -1,16 +1,19 @@
 locals {
 
-  app_gateway_name = format("%s-%s-%s",var.project,var.systemenv,var.name)
+app_gateway_name = var.app_gateway_fullname != "" ? var.app_gateway_fullname: format("%s-%s",var.resource_group_name,var.name)
 
-  name_prefix = format("%s-%s",var.project,var.systemenv)
+name_prefix = var.project
 
-  gateway_tags  = {
-    project   = var.project
-    systemenv = var.systemenv
-    project   = var.project
-  }
+gateway_tags  = var.tags != null ? var.tags : {
+        project   = var.project
+}
 
-  backend_address_pools = var.backend_targets
+backend_address_pools = var.backend_targets
+
+
+mi_id = var.app_gw_custom_mi == "" ? azurerm_user_assigned_identity.gateway_identity[0].id : data.azurerm_user_assigned_identity.gateway_identity[0].id
+
+
 
 distinct_hostnames = distinct([
     for entry in var.routing_rules : entry.hostname
@@ -22,8 +25,8 @@ distinct_hostnames = distinct([
       for name, obj in var.routing_rules : name => {
         backend_target = obj.backend_target
         backend_port   = obj.backend_port
-        path           = lookup(obj,"path","/")
-        use_letsencrypt= lookup(obj,"use_letsencrypt",false)
+        path           = lookup(obj,"path","/*")
+
       } if obj.hostname == host
     }
   }
@@ -35,7 +38,7 @@ http_listeners = merge(
       for k, v in local.rules_grouped_by_hostname : {
         "${replace(k, ".", "-")}-http" = {
           hostname        = k
-          port            = 80
+          port            = "frontend_http"
           protocol        = "Http"
           use_letsencrypt = local.ssl_certificates[k]==replace(k, ".", "-") ? true : false
         }
@@ -45,7 +48,7 @@ http_listeners = merge(
       for k, v in local.rules_grouped_by_hostname : {
         "${replace(k, ".", "-")}-ssl" = {
           hostname             = k
-          port                 = 443
+          port                 = "frontend_ssl"
           protocol             = "Https"
           ssl_certificate_name = local.ssl_certificates[k]
         }
@@ -80,6 +83,7 @@ for k, v in var.routing_rules :
 
 url_path_maps = merge(local.url_path_maps_ssl,local.url_path_maps_http)
 
+
 url_path_maps_http = {
   for lstK, lstV in local.http_listeners: 
       lstK => {
@@ -108,8 +112,8 @@ url_path_maps_http = {
 url_path_maps_ssl = {
   for lstK, lstV in local.http_listeners: 
       lstK => {
-        default_backend_address_pool_name = one([for rule in values(local.rules_grouped_by_hostname[lstV.hostname]) : rule.backend_target if rule.path == "/" ])
-        default_backend_http_settings_name = format("%s-%s",local.name_prefix,one([for k,v in local.rules_grouped_by_hostname[lstV.hostname] : k if v.path == "/" ]))
+        default_backend_address_pool_name = one([for rule in values(local.rules_grouped_by_hostname[lstV.hostname]) : rule.backend_target if rule.path == "/*" ])
+        default_backend_http_settings_name = format("%s-%s",local.name_prefix,one([for k,v in local.rules_grouped_by_hostname[lstV.hostname] : k if v.path == "/*" ]))
 
         path_rules = {
             for appK, appV in local.rules_grouped_by_hostname[lstV.hostname]:
@@ -131,13 +135,12 @@ redirections = {
         include_path = true
         include_query_string = true
         } if lookup(lstV,"protocol","") == "Http"
-      } 
+      }
 
 
-
+agw_backend_pool_ids = {
+    for p in azurerm_application_gateway.gateway.backend_address_pool :
+        p.name => p.id
+  }
 
 }
-
-
-
-

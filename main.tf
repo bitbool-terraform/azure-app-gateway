@@ -3,26 +3,37 @@ data "azurerm_key_vault" "key_vault" {
   resource_group_name = var.resource_group_name
 }
 
+data "azurerm_key_vault_certificate" "key_vault_certificate" {
+  for_each = local.ssl_certificates
+ 
+  name                = each.value
+  key_vault_id = data.azurerm_key_vault.key_vault.id
+}
+
+
+
 resource "azurerm_public_ip" "gateway_pip" {
-  name                = format("%s-pip",local.app_gateway_name)
+  name                = format("%s-PIP01",upper(local.app_gateway_name))
   resource_group_name = var.resource_group_name
   location            = var.location
   allocation_method   = "Static"
+  zones               = var.zones
+  tags                = local.gateway_tags
 }
 
 
 resource "azurerm_user_assigned_identity" "gateway_identity" {
+  count = var.app_gw_custom_mi == "" ? 1 : 0
   name                = format("%s-mi",local.app_gateway_name)
   resource_group_name = var.resource_group_name
   location            = var.location
 }
 
-# data "azurerm_key_vault_certificate" "certificate" {
-#     for_each = local.ssl_certificates
-#   name         = each.value
-#   key_vault_id = data.azurerm_key_vault.key_vault.id
-# }
-
+data "azurerm_user_assigned_identity" "gateway_identity" {
+  count = var.app_gw_custom_mi != "" ? 1 : 0    
+  name                = var.app_gw_custom_mi
+  resource_group_name = var.resource_group_name
+}
 
 resource "azurerm_application_gateway" "gateway" {
   name                = local.app_gateway_name
@@ -31,6 +42,7 @@ resource "azurerm_application_gateway" "gateway" {
   tags                = local.gateway_tags
   zones               = var.zones
 
+  firewall_policy_id    = var.firewall_policy_id
 
   sku {
     name     = var.sku_name
@@ -49,16 +61,16 @@ resource "azurerm_application_gateway" "gateway" {
 
   identity {
       type         = "UserAssigned"
-      identity_ids = [azurerm_user_assigned_identity.gateway_identity.id]
+      identity_ids = [local.mi_id]
   }
 
   gateway_ip_configuration {
-    name      = "gateway-ip-configuration"
+    name      = "appgw-ip-config"
     subnet_id = var.subnet_id
   }
 
   frontend_ip_configuration {
-    name                 = "frontend-public-ip-configuration"
+    name                 = "appgw-public-frontend-ip"
     public_ip_address_id = azurerm_public_ip.gateway_pip.id
   }
 
@@ -79,29 +91,29 @@ resource "azurerm_application_gateway" "gateway" {
 
     content {
       name         = backend_address_pool.key
-      fqdns        = backend_address_pool.value.fqdns
-      ip_addresses = backend_address_pool.value.ip_addresses
+      fqdns        = lookup(backend_address_pool.value,"fqdns",null)
+      ip_addresses = lookup(backend_address_pool.value,"ip_addresses",null)
     }
   }
 
+    frontend_port {
+        name = "port_80"
+        port = 80
+    }
 
-  dynamic "frontend_port" {
-    for_each = local.http_listeners
+    frontend_port {
+        name = "port_443"
+        port = 443
+    }
+
+  dynamic "ssl_certificate" {
+    for_each = local.ssl_certificates
 
     content {
-      name = frontend_port.key
-      port = frontend_port.value.port
+      name                = ssl_certificate.value
+      key_vault_secret_id = data.azurerm_key_vault_certificate.key_vault_certificate[ssl_certificate.key].secret_id
     }
   }
-
-#   dynamic "ssl_certificate" {
-#     for_each = local.ssl_certificates
-
-#     content {
-#       name                = ssl_certificate.value
-#       key_vault_secret_id = azurerm_key_vault_certificate.key_vault_certificate[ssl_certificate.key].secret_id
-#     }
-#   }
 
   dynamic "http_listener" { # 2 listeners / hostname
     for_each = local.http_listeners
@@ -112,33 +124,28 @@ resource "azurerm_application_gateway" "gateway" {
       frontend_port_name             = http_listener.value.port
       protocol                       = http_listener.value.protocol
       host_name                      = http_listener.value.hostname
-
+      ssl_certificate_name           = http_listener.value.protocol == "Https" ? http_listener.value.ssl_certificate_name: null
       #host_names = 
-      #ssl_certificate_name
-
-        # dynamic "ssl_certificate_name" {
-        # for_each = http_listener.value.protocol == "Https" ? [1] : []
-        # content {
-        #     ssl_certificate_name = http_listener.value.ssl_certificate_name
-        # }
-        # }
     }
   }
 
-#   dynamic "probe" {
-#     for_each = var.probes
+  dynamic "probe" { #/app
+    for_each = local.backend_http_settings
 
-#     content {
-#       name                                      = probe.value.name
-#       host                                      = probe.value.host
-#       protocol                                  = probe.value.protocol
-#       path                                      = probe.value.path
-#       interval                                  = probe.value.interval
-#       timeout                                   = probe.value.timeout
-#       unhealthy_threshold                       = probe.value.unhealthy_threshold
-#       pick_host_name_from_backend_http_settings = probe.value.host == null ? true : null
-#     }
-#   }
+    content {
+      name                                      = format("%s-%s",local.name_prefix,probe.key)
+      host                                      = lookup(var.routing_rules[probe.key],"hostname")
+      protocol                                  = "Http"
+      path                                      = "/"
+      interval                                  = lookup(var.routing_rules[probe.key],"probe_interval",var.probe_interval)
+      timeout                                   = lookup(var.routing_rules[probe.key],"probe_timeout",var.probe_timeout)
+      unhealthy_threshold                       = lookup(var.routing_rules[probe.key],"probe_unhealthy_threshold",var.unhealthy_threshold)
+      
+      match {
+        status_code = ["200-499"]
+      }
+    }
+  }
 
     dynamic "backend_http_settings" { #/app
     for_each = local.backend_http_settings
@@ -149,12 +156,11 @@ resource "azurerm_application_gateway" "gateway" {
         protocol                            = backend_http_settings.value.protocol
         cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
         request_timeout                     = backend_http_settings.value.request_timeout
-        host_name                           = backend_http_settings.value.hostname
-        #pick_host_name_from_backend_address = backend_http_settings.value.hostname == null ? true : null
-    #   probe_name                          = backend_http_settings.value.probe_name
+        # host_name                           = backend_http_settings.value.hostname
+        pick_host_name_from_backend_address = false
+        probe_name                          = format("%s-%s",local.name_prefix,backend_http_settings.key)
     }
     }
-
 
 
     dynamic "request_routing_rule" {#/listener
@@ -169,47 +175,77 @@ resource "azurerm_application_gateway" "gateway" {
     }
     }
 
-
-    dynamic "url_path_map" { #/listener
-        for_each = local.http_listeners
+    dynamic "url_path_map" { #/SSL listener
+        for_each = local.url_path_maps_ssl
 
         content {
         name                                = url_path_map.key
-        default_backend_address_pool_name   = one([for rule in values(local.rules_grouped_by_hostname[url_path_map.value.hostname]) : rule.backend_target if rule.path == "/" ])
-
-        default_backend_http_settings_name  = format("%s-%s",local.name_prefix,one([for k,v in local.rules_grouped_by_hostname[url_path_map.value.hostname] : k if v.path == "/" ]))
-        # default_redirect_configuration_name = 
+        default_backend_address_pool_name   = url_path_map.value.default_backend_address_pool_name
+        default_backend_http_settings_name  = url_path_map.value.default_backend_http_settings_name
 
         dynamic "path_rule" {
-              for_each = local.rules_grouped_by_hostname[url_path_map.value.hostname]
+              for_each = url_path_map.value.path_rules
 
             content {
-            name                       = format("%s-%s",url_path_map.key,path_rule.key)
-            paths                      = [path_rule.value.path]
-            backend_address_pool_name  = path_rule.value.backend_target
-            backend_http_settings_name = format("%s-%s",local.name_prefix,path_rule.key)
-            # redirect_configuration_name = 
+            name                       = path_rule.key
+            paths                      = path_rule.value.paths
+            backend_address_pool_name  = path_rule.value.backend_address_pool_name
+            backend_http_settings_name = path_rule.value.backend_http_settings_name
 
             }
         }
         }
     }
 
-    # dynamic "redirect_configuration" {
-    # for_each = var.redirect_configuration != null ? var.redirect_configuration : {}
+    dynamic "url_path_map" { #/listener
+        for_each = local.url_path_maps_http
 
-    # content {
-    #     name                 = redirect_configuration.value.name
-    #     redirect_type        = redirect_configuration.value.redirect_type
-    #     include_path         = redirect_configuration.value.include_path
-    #     include_query_string = redirect_configuration.value.include_query_string
-    #     target_listener_name = redirect_configuration.value.target_listener_name
-    #     target_url           = redirect_configuration.value.target_url
-    # }
-    # }
+        content {
+        name                                = url_path_map.key
+        default_redirect_configuration_name = url_path_map.key
 
+        dynamic "path_rule" {
+              for_each = url_path_map.value.path_rules
 
+            content {
+            name                        = path_rule.key
+            paths                       = path_rule.value.paths
+            redirect_configuration_name = lookup(path_rule.value,"redirect_configuration_name",null)
+            backend_address_pool_name   = lookup(path_rule.value,"backend_address_pool_name",null)
+            backend_http_settings_name  = lookup(path_rule.value,"backend_http_settings_name",null)
 
+            }
+        }
+        }
+    }
 
+    dynamic "redirect_configuration" { # /http-listener
+    for_each = local.redirections
 
+    content {
+        name                 = redirect_configuration.key
+        redirect_type        = redirect_configuration.value.redirect_type
+        include_path         = redirect_configuration.value.include_path
+        include_query_string = redirect_configuration.value.include_query_string
+        target_listener_name = redirect_configuration.value.target_listener_name
+    }
+    }
 }
+
+
+data "azurerm_network_interface" "nic" {
+  for_each =  { for k,v in local.backend_address_pools: k=>v if lookup(v,"nic","") != "" }
+
+  name                = each.value.nic
+  resource_group_name = var.resource_group_name
+}
+
+resource "azurerm_network_interface_application_gateway_backend_address_pool_association" "nic_association" {
+
+    for_each =  { for k,v in local.backend_address_pools: k=>v if lookup(v,"nic","") != "" }
+
+  network_interface_id    = data.azurerm_network_interface.nic[each.key].id
+  ip_configuration_name   = data.azurerm_network_interface.nic[each.key].ip_configuration[0].name
+  backend_address_pool_id = local.agw_backend_pool_ids[each.key]
+}
+

@@ -6,8 +6,11 @@ variable "name" {
     }
 
 
+variable "app_gateway_fullname" { default ="" }
 variable "resource_group_name" { type = string }
 variable "location" { type = string }
+variable "firewall_policy_id" { default =null }
+variable "tags" { default =null }
 
 variable "subnet_id" { type = string }
 variable "backend_targets" {}
@@ -18,6 +21,11 @@ variable "initialize_certificates" { default = true }
 
 variable "cookie_based_affinity" { default = "Disabled" }
 variable "request_timeout" { default = 30 }
+variable "probe_interval" { default = 30 }
+variable "probe_timeout" { default = 30 }
+variable "unhealthy_threshold" { default = 20 }
+
+variable "app_gw_custom_mi" { default = "" }
 
 variable "capacity" { 
     type = number
