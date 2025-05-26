@@ -111,7 +111,7 @@ resource "azurerm_application_gateway" "gateway" {
 
     content {
       name                = ssl_certificate.value
-      key_vault_secret_id = data.azurerm_key_vault_certificate.key_vault_certificate[ssl_certificate.key].secret_id
+      key_vault_secret_id = data.azurerm_key_vault_certificate.key_vault_certificate[ssl_certificate.key].versionless_secret_id #Versionless required for cert rotation
     }
   }
 
@@ -158,7 +158,7 @@ resource "azurerm_application_gateway" "gateway" {
         cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
         request_timeout                     = backend_http_settings.value.request_timeout
         # host_name                           = backend_http_settings.value.hostname
-        pick_host_name_from_backend_address = false
+        pick_host_name_from_backend_address = lookup(backend_http_settings.value,"pick_host_name_from_backend_address",false)
         probe_name                          = format("%s-%s",local.name_prefix,backend_http_settings.key)
     }
     }

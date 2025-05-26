@@ -110,7 +110,7 @@ url_path_maps_http = {
                 }},
                 lstV.use_letsencrypt ? {
                 "${lstK}-letsencrypt" = {
-                    paths = [".well-known/*"]
+                    paths = ["/.well-known/*"]
                     backend_address_pool_name = var.letencrypt_backend_target
                     backend_http_settings_name =  format("%s-letsencrypt-validator",local.name_prefix)
                     }
