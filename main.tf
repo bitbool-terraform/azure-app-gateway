@@ -120,7 +120,7 @@ resource "azurerm_application_gateway" "gateway" {
 
     content {
       name                           = http_listener.key
-      frontend_ip_configuration_name = "frontend-public-ip-configuration"
+      frontend_ip_configuration_name = "appgw-public-frontend-ip"
       frontend_port_name             = http_listener.value.port
       protocol                       = http_listener.value.protocol
       host_name                      = http_listener.value.hostname
@@ -134,12 +134,13 @@ resource "azurerm_application_gateway" "gateway" {
 
     content {
       name                                      = format("%s-%s",local.name_prefix,probe.key)
-      host                                      = lookup(var.routing_rules[probe.key],"hostname")
+      host                                      = lookup(probe.value,"hostname",null)
       protocol                                  = "Http"
       path                                      = "/"
-      interval                                  = lookup(var.routing_rules[probe.key],"probe_interval",var.probe_interval)
-      timeout                                   = lookup(var.routing_rules[probe.key],"probe_timeout",var.probe_timeout)
-      unhealthy_threshold                       = lookup(var.routing_rules[probe.key],"probe_unhealthy_threshold",var.unhealthy_threshold)
+      interval                                  = lookup(probe.value,"probe_interval",var.probe_interval)
+      timeout                                   = lookup(probe.value,"probe_timeout",var.probe_timeout)
+      unhealthy_threshold                       = lookup(probe.value,"probe_unhealthy_threshold",var.unhealthy_threshold)
+      pick_host_name_from_backend_http_settings = lookup(probe.value,"pick_host_name_from_backend_address",false)
       
       match {
         status_code = ["200-499"]

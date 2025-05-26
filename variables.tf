@@ -24,6 +24,8 @@ variable "request_timeout" { default = 30 }
 variable "probe_interval" { default = 30 }
 variable "probe_timeout" { default = 30 }
 variable "unhealthy_threshold" { default = 20 }
+variable "letencrypt_backend_target" { default = null }
+variable "letencrypt_backend_port" { default = null }
 
 variable "app_gw_custom_mi" { default = "" }
 

@@ -38,7 +38,7 @@ http_listeners = merge(
       for k, v in local.rules_grouped_by_hostname : {
         "${replace(k, ".", "-")}-http" = {
           hostname        = k
-          port            = "frontend_http"
+          port            = "port_80"
           protocol        = "Http"
           use_letsencrypt = local.ssl_certificates[k]==replace(k, ".", "-") ? true : false
         }
@@ -48,7 +48,7 @@ http_listeners = merge(
       for k, v in local.rules_grouped_by_hostname : {
         "${replace(k, ".", "-")}-ssl" = {
           hostname             = k
-          port                 = "frontend_ssl"
+          port                 = "port_443"
           protocol             = "Https"
           ssl_certificate_name = local.ssl_certificates[k]
         }
@@ -69,7 +69,20 @@ ssl_certificates = {
 }
 
 
-backend_http_settings = {
+letsencrypt_backend_http_setting = var.letencrypt_backend_target != null ? {
+    "letsencrypt-validator" = {
+        port                    = var.letencrypt_backend_port
+        protocol                = "Http"
+        cookie_based_affinity   = "Disabled"
+        request_timeout         = var.request_timeout
+        pick_host_name_from_backend_address = true
+    }
+
+
+} : {}
+
+
+backend_http_settings = merge({
 for k, v in var.routing_rules :
     k => {
         port                    = v.backend_port
@@ -78,7 +91,7 @@ for k, v in var.routing_rules :
         request_timeout         = lookup(v,"request_timeout",var.request_timeout)
         hostname                = v.hostname
     }
-}
+},local.letsencrypt_backend_http_setting)
 
 
 url_path_maps = merge(local.url_path_maps_ssl,local.url_path_maps_http)
@@ -98,8 +111,8 @@ url_path_maps_http = {
                 lstV.use_letsencrypt ? {
                 "${lstK}-letsencrypt" = {
                     paths = [".well-known/*"]
-                    backend_address_pool_name = "letsencrypt1"
-                    backend_http_settings_name =  "letsencrypt2"
+                    backend_address_pool_name = var.letencrypt_backend_target
+                    backend_http_settings_name =  format("%s-letsencrypt-validator",local.name_prefix)
                     }
                 }: {}
                 )
