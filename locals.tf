@@ -76,6 +76,7 @@ letsencrypt_backend_http_setting = var.letencrypt_backend_target != null ? {
         cookie_based_affinity   = "Disabled"
         request_timeout         = var.request_timeout
         pick_host_name_from_backend_address = true
+        pick_host_name_from_backend_http_settings = true
     }
 
 
