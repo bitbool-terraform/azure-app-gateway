@@ -90,6 +90,7 @@ for k, v in var.routing_rules :
         cookie_based_affinity   = lookup(v,"cookie_based_affinity",var.cookie_based_affinity)
         request_timeout         = lookup(v,"request_timeout",var.request_timeout)
         hostname                = v.hostname
+        pick_host_name_from_backend_address = lookup(v,"pick_host_name_from_backend_address",false)
     }
 },local.letsencrypt_backend_http_setting)
 

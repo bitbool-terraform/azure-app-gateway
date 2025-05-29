@@ -74,18 +74,6 @@ resource "azurerm_application_gateway" "gateway" {
     public_ip_address_id = azurerm_public_ip.gateway_pip.id
   }
 
-
-#   dynamic "frontend_ip_configuration" {
-#     for_each = var.frontend_ip_configuration.subnet_id != null ? [""] : []
-
-#     content {
-#       name                          = "FrontendPrivateIpConfiguration"
-#       subnet_id                     = var.subnet_id
-#       private_ip_address_allocation = var.subnet_id != null ? "Static" : null
-#       private_ip_address            = var.frontend_ip_configuration.private_ip_address
-#     }
-#   }
-
   dynamic "backend_address_pool" {
     for_each = local.backend_address_pools
 
@@ -140,7 +128,7 @@ resource "azurerm_application_gateway" "gateway" {
       interval                                  = lookup(probe.value,"probe_interval",var.probe_interval)
       timeout                                   = lookup(probe.value,"probe_timeout",var.probe_timeout)
       unhealthy_threshold                       = lookup(probe.value,"probe_unhealthy_threshold",var.unhealthy_threshold)
-      pick_host_name_from_backend_http_settings = lookup(probe.value,"pick_host_name_from_backend_address",false)
+      pick_host_name_from_backend_http_settings = lookup(probe.value,"pick_host_name_from_backend_http_settings",false)
       
       match {
         status_code = ["200-499"]
@@ -158,7 +146,7 @@ resource "azurerm_application_gateway" "gateway" {
         cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
         request_timeout                     = backend_http_settings.value.request_timeout
         # host_name                           = backend_http_settings.value.hostname
-        pick_host_name_from_backend_address = lookup(backend_http_settings.value,"pick_host_name_from_backend_address",false)
+        pick_host_name_from_backend_address = backend_http_settings.value.pick_host_name_from_backend_address
         probe_name                          = format("%s-%s",local.name_prefix,backend_http_settings.key)
     }
     }
