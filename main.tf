@@ -74,6 +74,7 @@ resource "azurerm_application_gateway" "gateway" {
     public_ip_address_id = azurerm_public_ip.gateway_pip.id
   }
 
+
   dynamic "backend_address_pool" {
     for_each = local.backend_address_pools
 
