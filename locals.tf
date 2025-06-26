@@ -2,6 +2,8 @@ locals {
 
 app_gateway_name = var.app_gateway_fullname != "" ? var.app_gateway_fullname: format("%s-%s",var.resource_group_name,var.name)
 
+public_ip_name = var.public_ip_name != "" ? var.public_ip_name : format("%s-PIP01",upper(local.app_gateway_name))
+
 name_prefix = var.project
 
 gateway_tags  = var.tags != null ? var.tags : {
@@ -77,6 +79,7 @@ letsencrypt_backend_http_setting = var.letencrypt_backend_target != null ? {
         request_timeout         = var.request_timeout
         pick_host_name_from_backend_address = true
         pick_host_name_from_backend_http_settings = true
+        host_name_override = null
     }
 
 
@@ -92,6 +95,7 @@ for k, v in var.routing_rules :
         request_timeout         = lookup(v,"request_timeout",var.request_timeout)
         hostname                = v.hostname
         pick_host_name_from_backend_address = lookup(v,"pick_host_name_from_backend_address",false)
+        host_name_override      = lookup(v,"host_name_override",null) 
     }
 },local.letsencrypt_backend_http_setting)
 

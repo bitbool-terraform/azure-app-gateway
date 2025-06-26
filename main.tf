@@ -13,11 +13,11 @@ data "azurerm_key_vault_certificate" "key_vault_certificate" {
 
 
 resource "azurerm_public_ip" "gateway_pip" {
-  name                = format("%s-PIP01",upper(local.app_gateway_name))
+  name                = local.public_ip_name
   resource_group_name = var.resource_group_name
   location            = var.location
   allocation_method   = "Static"
-  zones               = var.zones
+  zones               = var.pip_zones
   tags                = local.gateway_tags
 }
 
@@ -41,23 +41,24 @@ resource "azurerm_application_gateway" "gateway" {
   location            = var.location
   tags                = local.gateway_tags
   zones               = var.zones
+  enable_http2        = var.enable_http2
 
   firewall_policy_id    = var.firewall_policy_id
 
   sku {
     name     = var.sku_name
     tier     = var.sku_name
-    capacity = var.capacity
+    capacity = var.sku_capacity
   }
 
-#   dynamic "autoscale_configuration" {
-#     for_each = var.autoscale_configuration != null ? [""] : []
+  dynamic "autoscale_configuration" {
+    for_each = var.autoscale_configuration == true ? [""] : []
 
-#     content {
-#       min_capacity = var.autoscale_configuration.min_capacity
-#       max_capacity = var.autoscale_configuration.max_capacity
-#     }
-#   }
+    content {
+      min_capacity     = var.autoscale_min_capacity
+      max_capacity     = var.autoscale_max_capacity
+    }
+  }
 
   identity {
       type         = "UserAssigned"
@@ -65,12 +66,12 @@ resource "azurerm_application_gateway" "gateway" {
   }
 
   gateway_ip_configuration {
-    name      = "appgw-ip-config"
+    name      = var.gateway_ip_name
     subnet_id = var.subnet_id
   }
 
   frontend_ip_configuration {
-    name                 = "appgw-public-frontend-ip"
+    name                 = var.frontend_ip_name
     public_ip_address_id = azurerm_public_ip.gateway_pip.id
   }
 
@@ -109,7 +110,7 @@ resource "azurerm_application_gateway" "gateway" {
 
     content {
       name                           = http_listener.key
-      frontend_ip_configuration_name = "appgw-public-frontend-ip"
+      frontend_ip_configuration_name = var.frontend_ip_name
       frontend_port_name             = http_listener.value.port
       protocol                       = http_listener.value.protocol
       host_name                      = http_listener.value.hostname
@@ -123,7 +124,7 @@ resource "azurerm_application_gateway" "gateway" {
 
     content {
       name                                      = format("%s-%s",local.name_prefix,probe.key)
-      host                                      = lookup(probe.value,"hostname",null)
+      host                                      = probe.value.host_name_override != null ? probe.value.host_name_override : lookup(probe.value,"hostname",null)
       protocol                                  = "Http"
       path                                      = "/"
       interval                                  = lookup(probe.value,"probe_interval",var.probe_interval)
@@ -146,7 +147,7 @@ resource "azurerm_application_gateway" "gateway" {
         protocol                            = backend_http_settings.value.protocol
         cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
         request_timeout                     = backend_http_settings.value.request_timeout
-        # host_name                           = backend_http_settings.value.hostname
+        host_name                           = backend_http_settings.value.host_name_override
         pick_host_name_from_backend_address = backend_http_settings.value.pick_host_name_from_backend_address
         probe_name                          = format("%s-%s",local.name_prefix,backend_http_settings.key)
     }
