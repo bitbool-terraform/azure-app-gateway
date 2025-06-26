@@ -6,9 +6,7 @@ public_ip_name = var.public_ip_name != "" ? var.public_ip_name : format("%s-PIP0
 
 name_prefix = var.project
 
-gateway_tags  = var.tags != null ? var.tags : {
-        project   = var.project
-}
+gateway_tags  = merge({project   = var.project},var.tags)
 
 backend_address_pools = var.backend_targets
 
@@ -22,21 +20,22 @@ distinct_hostnames = distinct([
   ])
 
 
-  rules_grouped_by_hostname = {
-    for host in local.distinct_hostnames : host => {
-      for name, obj in var.routing_rules : name => {
-        backend_target = obj.backend_target
-        backend_port   = obj.backend_port
-        path           = lookup(obj,"path","/*")
+rules_grouped_by_hostname = {
+  for host in local.distinct_hostnames : host => {
+    for name, obj in var.routing_rules : name => {
+      backend_target = obj.backend_target
+      backend_port   = obj.backend_port
+      path           = lookup(obj,"path","/*")
 
-      } if obj.hostname == host
-    }
+    } if obj.hostname == host
   }
+}
 
 
 http_listeners = merge(
   flatten([
     [
+      #TODO use local.distinct_hostnames
       for k, v in local.rules_grouped_by_hostname : {
         "${replace(k, ".", "-")}-http" = {
           hostname        = k
@@ -61,6 +60,7 @@ http_listeners = merge(
 
 
 ssl_certificates = {
+  #TODO use local.distinct_hostnames  
   for host, _ in local.rules_grouped_by_hostname : host => (
     can(
       [for k, cert in var.certificates_custom : cert.name if cert.hostname == host][0]
@@ -113,7 +113,8 @@ url_path_maps_http = {
                 "${lstK}-${appK}-redirect" => {
                     paths = [appV.path]
                     redirect_configuration_name = lstK
-                }},
+                  }
+                },
                 lstV.use_letsencrypt ? {
                 "${lstK}-letsencrypt" = {
                     paths = ["/.well-known/*"]

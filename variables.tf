@@ -1,3 +1,4 @@
+#TODO remove these two below
 variable "project" { type = string }
 variable "systemenv" { type = string }
 variable "name" { 
@@ -10,7 +11,7 @@ variable "app_gateway_fullname" { default ="" }
 variable "resource_group_name" { type = string }
 variable "location" { type = string }
 variable "firewall_policy_id" { default = null }
-variable "tags" { default =null }
+variable "tags" { default ={} }
 
 variable "subnet_id" { type = string }
 variable "backend_targets" {}
