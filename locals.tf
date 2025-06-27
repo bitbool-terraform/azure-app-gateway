@@ -6,7 +6,7 @@ public_ip_name = var.public_ip_name != "" ? var.public_ip_name : format("%s-PIP0
 
 name_prefix = var.project
 
-gateway_tags  = merge({project   = var.project},var.tags)
+gateway_tags  = var.tags #merge({project   = var.project},var.tags)
 
 backend_address_pools = var.backend_targets
 
@@ -90,7 +90,7 @@ backend_http_settings = merge({
 for k, v in var.routing_rules :
     k => {
         port                    = v.backend_port
-        protocol                = "Http"
+        protocol                = lookup(v,"protocol","Http")
         cookie_based_affinity   = lookup(v,"cookie_based_affinity",var.cookie_based_affinity)
         request_timeout         = lookup(v,"request_timeout",var.request_timeout)
         hostname                = v.hostname

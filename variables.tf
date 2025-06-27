@@ -24,7 +24,7 @@ variable "cookie_based_affinity" { default = "Disabled" }
 variable "request_timeout" { default = 30 }
 variable "probe_interval" { default = 30 }
 variable "probe_timeout" { default = 30 }
-variable "unhealthy_threshold" { default = 20 }
+variable "unhealthy_threshold" { default = 5 }
 variable "letencrypt_backend_target" { default = null }
 variable "letencrypt_backend_port" { default = null }
 variable "enable_http2" { default = true }
@@ -60,3 +60,11 @@ variable "pip_zones" {
     type = list 
     default = ["1", "2", "3"]
     }
+
+variable "ssl_profiles" {
+    default = {
+        "default" = {
+            "policy_name" = "AppGwSslPolicy20220101"
+        }
+    }
+}

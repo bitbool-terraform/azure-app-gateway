@@ -125,7 +125,7 @@ resource "azurerm_application_gateway" "gateway" {
     content {
       name                                      = format("%s-%s",local.name_prefix,probe.key)
       host                                      = probe.value.host_name_override != null ? probe.value.host_name_override : lookup(probe.value,"hostname",null)
-      protocol                                  = "Http"
+      protocol                                  = lookup(probe.value,"protocol","Http")
       path                                      = "/"
       interval                                  = lookup(probe.value,"probe_interval",var.probe_interval)
       timeout                                   = lookup(probe.value,"probe_timeout",var.probe_timeout)
@@ -133,7 +133,7 @@ resource "azurerm_application_gateway" "gateway" {
       pick_host_name_from_backend_http_settings = lookup(probe.value,"pick_host_name_from_backend_http_settings",false)
       
       match {
-        status_code = ["200-499"]
+        status_code = [lookup(probe.value,"status_code","200-499")]
       }
     }
   }
@@ -211,16 +211,32 @@ resource "azurerm_application_gateway" "gateway" {
     }
 
     dynamic "redirect_configuration" { # /http-listener
-    for_each = local.redirections
+      for_each = local.redirections
 
-    content {
-        name                 = redirect_configuration.key
-        redirect_type        = redirect_configuration.value.redirect_type
-        include_path         = redirect_configuration.value.include_path
-        include_query_string = redirect_configuration.value.include_query_string
-        target_listener_name = redirect_configuration.value.target_listener_name
+      content {
+          name                 = redirect_configuration.key
+          redirect_type        = redirect_configuration.value.redirect_type
+          include_path         = redirect_configuration.value.include_path
+          include_query_string = redirect_configuration.value.include_query_string
+          target_listener_name = redirect_configuration.value.target_listener_name
+      }
     }
+
+    dynamic "ssl_profile" {
+      for_each = var.ssl_profiles 
+
+      content {
+        name                                 = ssl_profile.key
+        trusted_client_certificate_names     = lookup(ssl_profile.value,"trusted_client_certificate_names",null)
+        verify_client_cert_issuer_dn         = lookup(ssl_profile.value,"verify_client_cert_issuer_dn",false)
+        verify_client_certificate_revocation = lookup(ssl_profile.value,"verify_client_certificate_revocation",null)
+        ssl_policy {
+          policy_type  = "Predefined"
+          policy_name  = ssl_profile.value.policy_name
+        }
+      } 
     }
+
 }
 
 
