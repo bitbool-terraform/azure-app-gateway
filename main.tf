@@ -178,11 +178,11 @@ resource "azurerm_application_gateway" "gateway" {
               for_each = url_path_map.value.path_rules
 
             content {
-            name                       = path_rule.key
-            paths                      = path_rule.value.paths
-            backend_address_pool_name  = path_rule.value.backend_address_pool_name
-            backend_http_settings_name = path_rule.value.backend_http_settings_name
-
+              name                       = path_rule.key
+              paths                      = path_rule.value.paths
+              backend_address_pool_name  = path_rule.value.backend_address_pool_name
+              backend_http_settings_name = path_rule.value.backend_http_settings_name
+              rewrite_rule_set_name      = lookup(path_rule.value,"rewrite_rule_set_name",null)
             }
         }
         }
@@ -199,12 +199,12 @@ resource "azurerm_application_gateway" "gateway" {
               for_each = url_path_map.value.path_rules
 
             content {
-            name                        = path_rule.key
-            paths                       = path_rule.value.paths
-            redirect_configuration_name = lookup(path_rule.value,"redirect_configuration_name",null)
-            backend_address_pool_name   = lookup(path_rule.value,"backend_address_pool_name",null)
-            backend_http_settings_name  = lookup(path_rule.value,"backend_http_settings_name",null)
-
+              name                        = path_rule.key
+              paths                       = path_rule.value.paths
+              redirect_configuration_name = lookup(path_rule.value,"redirect_configuration_name",null)
+              backend_address_pool_name   = lookup(path_rule.value,"backend_address_pool_name",null)
+              backend_http_settings_name  = lookup(path_rule.value,"backend_http_settings_name",null)
+              rewrite_rule_set_name      = lookup(path_rule.value,"rewrite_rule_set_name",null)
             }
         }
         }
@@ -237,6 +237,27 @@ resource "azurerm_application_gateway" "gateway" {
       } 
     }
 
+    dynamic "rewrite_rule_set" {
+      for_each = var.security_headers_enabled ? var.security_headers : {}
+
+      content {
+        name = format("security_headers_%s",rewrite_rule_set.key)
+
+        rewrite_rule {
+          name          = "add-headers"
+          rule_sequence = 1
+
+          dynamic "response_header_configuration" {
+            for_each = rewrite_rule_set.value
+
+            content {
+              header_name  = response_header_configuration.key
+              header_value = response_header_configuration.value
+            }
+          }
+        }
+      }
+    }
 }
 
 

@@ -26,6 +26,7 @@ rules_grouped_by_hostname = {
       backend_target = obj.backend_target
       backend_port   = obj.backend_port
       path           = lookup(obj,"path","/*")
+      rewrite_rule_set_name = lookup(obj,"rewrite_rule_set_name",null)      
 
     } if obj.hostname == host
   }
@@ -141,6 +142,7 @@ url_path_maps_ssl = {
                     paths = [appV.path]
                     backend_address_pool_name = appV.backend_target
                     backend_http_settings_name = format("%s-%s",local.name_prefix,appK)
+                    rewrite_rule_set_name = lookup(appV,"rewrite_rule_set_name",null)
                 }
         }
       } if lookup(lstV,"protocol","") == "Https"

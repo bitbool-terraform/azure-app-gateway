@@ -68,3 +68,19 @@ variable "ssl_profiles" {
         }
     }
 }
+
+variable "security_headers" {
+  type = map(map(string))
+  default = {
+    "default" = {
+        "Strict-Transport-Security" = "max-age=2592000; preload"
+        "X-Frame-Options"           = "SAMEORIGIN"
+        "X-Content-Type-Options"    = "nosniff"
+        "Referrer-Policy"           = "same-origin"
+        "Permissions-Policy"        = "geolocation=(), microphone=()"
+        #"Content-Security-Policy"   = "default-src 'self'"        
+    }
+  }
+}
+
+variable "security_headers_enabled" { default = false }
