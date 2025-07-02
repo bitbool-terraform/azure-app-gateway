@@ -1,6 +1,6 @@
 #TODO remove these two below
-variable "project" { type = string }
-variable "systemenv" { type = string }
+#variable "project" { type = string }
+#variable "systemenv" { type = string }
 variable "name" { 
     type = string 
     default ="app-gw"
@@ -15,18 +15,16 @@ variable "tags" { default ={} }
 
 variable "subnet_id" { type = string }
 variable "backend_targets" {}
-variable "routing_rules" {}
+#variable "routing_rules" {}
 variable "key_vault_name" {}
 variable "certificates_custom" { default = {} }
 variable "initialize_certificates" { default = true }
 
-variable "cookie_based_affinity" { default = "Disabled" }
-variable "request_timeout" { default = 30 }
-variable "probe_interval" { default = 30 }
-variable "probe_timeout" { default = 30 }
-variable "unhealthy_threshold" { default = 5 }
-variable "letencrypt_backend_target" { default = null }
-variable "letencrypt_backend_port" { default = null }
+# variable "request_timeout" { default = 30 }
+# variable "probe_interval" { default = 30 }
+# variable "probe_timeout" { default = 30 }
+# variable "unhealthy_threshold" { default = 5 }
+variable "letsencrypt_backend_target" { default = null }
 variable "enable_http2" { default = true }
 variable "gateway_ip_name" { default = "appgw-ip-config" }
 variable "frontend_ip_name" { default = "appgw-public-frontend-ip" }
@@ -36,7 +34,24 @@ variable "autoscale_configuration" { default = false }
 variable "autoscale_min_capacity" { default = null }
 variable "autoscale_max_capacity" { default = null }
 
+variable "listeners" {}
+variable "redirections" { default = {} }
 
+variable "default_backend_settings" {
+    default = {
+        port = 443
+        protocol = "Https"
+        cookie_based_affinity = "Enabled"
+        request_timeout = 30
+        # pick_host_name_from_backend_http_settings = true
+        # pick_host_name_from_backend_address = true
+        probe_interval = 30
+        probe_timeout = 10
+        probe_unhealthy_threshold = 5
+        probe_path = "/"
+        status_code = ["200-499"]
+    }
+}
 
 variable "app_gw_custom_mi" { default = "" }
 variable "public_ip_name" { default = "" }

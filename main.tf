@@ -77,7 +77,7 @@ resource "azurerm_application_gateway" "gateway" {
 
 
   dynamic "backend_address_pool" {
-    for_each = local.backend_address_pools
+    for_each = merge(local.backend_address_pools,var.letsencrypt_backend_target)
 
     content {
       name         = backend_address_pool.key
@@ -86,15 +86,14 @@ resource "azurerm_application_gateway" "gateway" {
     }
   }
 
-    frontend_port {
-        name = "port_80"
-        port = 80
-    }
+  dynamic "frontend_port" {
+    for_each = { for k in local.frontend_port_numbers: k => k }
 
-    frontend_port {
-        name = "port_443"
-        port = 443
+    content {
+      name = format("port_%s",frontend_port.key)
+      port = frontend_port.key
     }
+  }
 
   dynamic "ssl_certificate" {
     for_each = local.ssl_certificates
@@ -113,112 +112,115 @@ resource "azurerm_application_gateway" "gateway" {
       frontend_ip_configuration_name = var.frontend_ip_name
       frontend_port_name             = http_listener.value.port
       protocol                       = http_listener.value.protocol
-      host_name                      = http_listener.value.hostname
-      ssl_certificate_name           = http_listener.value.protocol == "Https" ? http_listener.value.ssl_certificate_name: null
-      #host_names = 
+      host_names                     = http_listener.value.hostnames
+      ssl_certificate_name           = http_listener.value.ssl_certificate_name
     }
   }
 
   dynamic "probe" { #/app
-    for_each = local.backend_http_settings
+    for_each = merge(local.backend_http_settings,local.letsencrypt_backend_http_setting)
 
     content {
-      name                                      = format("%s-%s",local.name_prefix,probe.key)
-      host                                      = probe.value.host_name_override != null ? probe.value.host_name_override : lookup(probe.value,"hostname",null)
-      protocol                                  = lookup(probe.value,"protocol","Http")
-      path                                      = "/"
-      interval                                  = lookup(probe.value,"probe_interval",var.probe_interval)
-      timeout                                   = lookup(probe.value,"probe_timeout",var.probe_timeout)
-      unhealthy_threshold                       = lookup(probe.value,"probe_unhealthy_threshold",var.unhealthy_threshold)
-      pick_host_name_from_backend_http_settings = lookup(probe.value,"pick_host_name_from_backend_http_settings",false)
+      name                                      = probe.key
+      host                                      = try(probe.value.host_name,null)
+      protocol                                  = probe.value.protocol
+      path                                      = probe.value.probe_path
+      interval                                  = probe.value.probe_interval
+      timeout                                   = probe.value.probe_timeout
+      unhealthy_threshold                       = probe.value.probe_unhealthy_threshold
+      pick_host_name_from_backend_http_settings = lookup(probe.value,"host_name",false)? false : true
       
       match {
-        status_code = [lookup(probe.value,"status_code","200-499")]
+        status_code = probe.value.status_code
       }
     }
   }
 
     dynamic "backend_http_settings" { #/app
-    for_each = local.backend_http_settings
+      for_each = merge(local.backend_http_settings,local.letsencrypt_backend_http_setting)
 
-    content {
-        name                                = format("%s-%s",local.name_prefix,backend_http_settings.key)
-        port                                = backend_http_settings.value.port
-        protocol                            = backend_http_settings.value.protocol
-        cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
-        request_timeout                     = backend_http_settings.value.request_timeout
-        host_name                           = backend_http_settings.value.host_name_override
-        pick_host_name_from_backend_address = backend_http_settings.value.pick_host_name_from_backend_address
-        probe_name                          = format("%s-%s",local.name_prefix,backend_http_settings.key)
-    }
+      content {
+          name                                = backend_http_settings.key
+          port                                = backend_http_settings.value.port
+          protocol                            = backend_http_settings.value.protocol
+          cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
+          request_timeout                     = backend_http_settings.value.request_timeout
+          host_name                           = try(backend_http_settings.value.host_name,null)
+          pick_host_name_from_backend_address = lookup(backend_http_settings.value,"host_name",false)? false : true
+          probe_name                          = backend_http_settings.key
+      }
     }
 
 
     dynamic "request_routing_rule" {#/listener
-    for_each = local.http_listeners
+      for_each = local.http_listeners
 
-    content {
-        name                       = request_routing_rule.key
-        rule_type                  = "PathBasedRouting"
-        priority                   = 10 * (index(keys(local.http_listeners), request_routing_rule.key))+100
-        http_listener_name         = request_routing_rule.key
-        url_path_map_name          = request_routing_rule.key
-    }
+      content {
+          name                       = request_routing_rule.key
+          rule_type                  = "PathBasedRouting"
+          priority                   = 10 * (index(keys(local.http_listeners), request_routing_rule.key))+100
+          http_listener_name         = request_routing_rule.key
+          url_path_map_name          = request_routing_rule.key
+      }
     }
 
-    dynamic "url_path_map" { #/SSL listener
-        for_each = local.url_path_maps_ssl
+    dynamic "url_path_map" { 
+        for_each = local.url_path_maps
 
         content {
-        name                                = url_path_map.key
-        default_backend_address_pool_name   = url_path_map.value.default_backend_address_pool_name
-        default_backend_http_settings_name  = url_path_map.value.default_backend_http_settings_name
+          name                                = url_path_map.key
+          default_redirect_configuration_name = url_path_map.value.default_redirect_configuration_name
+          default_backend_address_pool_name   = url_path_map.value.default_backend_address_pool_name
+          default_backend_http_settings_name  = url_path_map.value.default_backend_http_settings_name
+          default_rewrite_rule_set_name       = url_path_map.value.default_rewrite_rule_set_name
 
-        dynamic "path_rule" {
+          dynamic "path_rule" {
               for_each = url_path_map.value.path_rules
 
-            content {
-              name                       = path_rule.key
-              paths                      = path_rule.value.paths
-              backend_address_pool_name  = path_rule.value.backend_address_pool_name
-              backend_http_settings_name = path_rule.value.backend_http_settings_name
-              rewrite_rule_set_name      = lookup(path_rule.value,"rewrite_rule_set_name",null)
-            }
-        }
+              content {
+                name                       = path_rule.key
+                paths                      = path_rule.value.paths
+                redirect_configuration_name = path_rule.value.redirect_configuration_name
+                backend_address_pool_name  = path_rule.value.backend_address_pool_name
+                backend_http_settings_name = path_rule.value.backend_http_settings_name
+                rewrite_rule_set_name      = lookup(path_rule.value,"rewrite_rule_set_name",null)
+              }
+          }
         }
     }
 
-    dynamic "url_path_map" { #/listener
-        for_each = local.url_path_maps_http
+    # dynamic "url_path_map" { #/listener
+    #     for_each = local.url_path_maps_http
 
-        content {
-        name                                = url_path_map.key
-        default_redirect_configuration_name = url_path_map.key
+    #     content {
+    #     name                                = url_path_map.key
+    #     default_redirect_configuration_name = url_path_map.key
 
-        dynamic "path_rule" {
-              for_each = url_path_map.value.path_rules
+    #     dynamic "path_rule" {
+    #           for_each = url_path_map.value.path_rules
 
-            content {
-              name                        = path_rule.key
-              paths                       = path_rule.value.paths
-              redirect_configuration_name = lookup(path_rule.value,"redirect_configuration_name",null)
-              backend_address_pool_name   = lookup(path_rule.value,"backend_address_pool_name",null)
-              backend_http_settings_name  = lookup(path_rule.value,"backend_http_settings_name",null)
-              rewrite_rule_set_name      = lookup(path_rule.value,"rewrite_rule_set_name",null)
-            }
-        }
-        }
-    }
+    #         content {
+    #           name                        = path_rule.key
+    #           paths                       = path_rule.value.paths
+    #           redirect_configuration_name = lookup(path_rule.value,"redirect_configuration_name",null)
+    #           backend_address_pool_name   = lookup(path_rule.value,"backend_address_pool_name",null)
+    #           backend_http_settings_name  = lookup(path_rule.value,"backend_http_settings_name",null)
+    #           rewrite_rule_set_name      = lookup(path_rule.value,"rewrite_rule_set_name",null)
+    #         }
+    #     }
+    #     }
+    # }
 
     dynamic "redirect_configuration" { # /http-listener
-      for_each = local.redirections
+      for_each = var.redirections
 
       content {
           name                 = redirect_configuration.key
-          redirect_type        = redirect_configuration.value.redirect_type
-          include_path         = redirect_configuration.value.include_path
-          include_query_string = redirect_configuration.value.include_query_string
-          target_listener_name = redirect_configuration.value.target_listener_name
+          redirect_type        = lookup(redirect_configuration.value,"redirect_type","Permanent")
+          include_path         = lookup(redirect_configuration.value,"include_path",true)
+          include_query_string = lookup(redirect_configuration.value,"include_query_string",true)
+          target_listener_name = try(redirect_configuration.value.target_listener_name,null)
+          target_url           = try(redirect_configuration.value.target_url,null)
       }
     }
 
@@ -262,7 +264,7 @@ resource "azurerm_application_gateway" "gateway" {
 
 
 data "azurerm_network_interface" "nic" {
-  for_each =  { for k,v in local.backend_address_pools: k=>v if lookup(v,"nic","") != "" }
+  for_each =  { for k,v in merge(local.backend_address_pools,var.letsencrypt_backend_target): k=>v if lookup(v,"nic","") != "" }
 
   name                = each.value.nic
   resource_group_name = var.resource_group_name
@@ -270,7 +272,7 @@ data "azurerm_network_interface" "nic" {
 
 resource "azurerm_network_interface_application_gateway_backend_address_pool_association" "nic_association" {
 
-    for_each =  { for k,v in local.backend_address_pools: k=>v if lookup(v,"nic","") != "" }
+  for_each =  { for k,v in merge(local.backend_address_pools,var.letsencrypt_backend_target): k=>v if lookup(v,"nic","") != "" }
 
   network_interface_id    = data.azurerm_network_interface.nic[each.key].id
   ip_configuration_name   = data.azurerm_network_interface.nic[each.key].ip_configuration[0].name
