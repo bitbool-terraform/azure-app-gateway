@@ -117,18 +117,29 @@ resource "azurerm_application_gateway" "gateway" {
     }
   }
 
+# 3 Cases:
+# 1) Use explicit value for connection to backend:
+#    - Set host_name, this will use the same value for probe_host_name
+# 2) Use backend target fqdn for connection to backend:
+#    - Don't set host_name or probe_host_name, this will make pick_host_name_from_backend_address and            pick_host_name_from_backend_http_settings -> true 
+# 3) Forward whatever the user sends as hostname:
+#    - This implies that probe host needs to be specified, so set: 
+#        - pick_host_name_from_backend_address = false
+#        - probe_host_name = <value for the probe to succeed>
+
+
   dynamic "probe" { #/app
     for_each = merge(local.backend_http_settings,local.letsencrypt_backend_http_setting)
 
     content {
       name                                      = probe.key
-      host                                      = try(probe.value.host_name,null)
+      host                                      = lookup(probe.value,"probe_host_name",lookup(probe.value,"host_name",null))
       protocol                                  = probe.value.protocol
       path                                      = probe.value.probe_path
       interval                                  = probe.value.probe_interval
       timeout                                   = probe.value.probe_timeout
       unhealthy_threshold                       = probe.value.probe_unhealthy_threshold
-      pick_host_name_from_backend_http_settings = lookup(probe.value,"host_name",false)? false : true
+      pick_host_name_from_backend_http_settings = lookup(probe.value,"probe_host_name",lookup(probe.value,"host_name",null)) ==null ? true : false
       
       match {
         status_code = probe.value.status_code
@@ -145,11 +156,13 @@ resource "azurerm_application_gateway" "gateway" {
           protocol                            = backend_http_settings.value.protocol
           cookie_based_affinity               = backend_http_settings.value.cookie_based_affinity
           request_timeout                     = backend_http_settings.value.request_timeout
-          host_name                           = try(backend_http_settings.value.host_name,null)
-          pick_host_name_from_backend_address = lookup(backend_http_settings.value,"host_name",false)? false : true
+          host_name                           = lookup(backend_http_settings.value,"host_name",null)
+          pick_host_name_from_backend_address = lookup(backend_http_settings.value,"pick_host_name_from_backend_address",lookup(backend_http_settings.value,"host_name",null) == null ? true : false)
           probe_name                          = backend_http_settings.key
       }
     }
+
+
 
 
     dynamic "request_routing_rule" {#/listener
