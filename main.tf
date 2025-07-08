@@ -246,10 +246,25 @@ resource "azurerm_application_gateway" "gateway" {
         verify_client_cert_issuer_dn         = lookup(ssl_profile.value,"verify_client_cert_issuer_dn",false)
         verify_client_certificate_revocation = lookup(ssl_profile.value,"verify_client_certificate_revocation",null)
         ssl_policy {
-          policy_type  = "Predefined"
-          policy_name  = ssl_profile.value.policy_name
+          policy_type  = lookup(ssl_profile.value,"policy_type","Predefined")
+          policy_name  = lookup(ssl_profile.value, "policy_name", null)
+          min_protocol_version = lookup(ssl_profile.value, "min_protocol_version", null)
+          cipher_suites        = lookup(ssl_profile.value, "cipher_suites", null)
+          disabled_protocols   = lookup(ssl_profile.value, "disabled_protocols", null)
         }
       } 
+    }
+
+    
+    dynamic  "ssl_policy" {
+    for_each = var.global_ssl_policy != null ? [var.global_ssl_policy] : []
+
+        content {
+        policy_type          = var.global_ssl_policy.policy_type
+        min_protocol_version = var.global_ssl_policy.min_protocol_version
+        cipher_suites = var.global_ssl_policy.cipher_suites
+        disabled_protocols = var.global_ssl_policy.disabled_protocols
+      }
     }
 
     dynamic "rewrite_rule_set" {

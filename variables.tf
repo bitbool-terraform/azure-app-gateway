@@ -99,3 +99,5 @@ variable "security_headers" {
 }
 
 variable "security_headers_enabled" { default = false }
+
+variable "global_ssl_policy" { default = null }
