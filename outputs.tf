@@ -20,6 +20,10 @@ output "backend_http_settings" {
 output "url_path_maps" {
   value = local.url_path_maps
 }
+
+output "gw_ip" {
+  value = azurerm_public_ip.gateway_pip.ip_address
+}
 # output "url_path_maps_http" {
 #   value = local.url_path_maps_http
 # }
