@@ -18,7 +18,7 @@ resource "azurerm_public_ip" "gateway_pip" {
   location            = var.location
   allocation_method   = "Static"
   zones               = var.pip_zones
-  tags                = local.gateway_tags
+  tags                = merge(local.gateway_tags,var.pip_extra_tags)
 }
 
 

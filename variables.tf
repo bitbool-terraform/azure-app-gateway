@@ -44,7 +44,7 @@ variable "default_backend_settings" {
         cookie_based_affinity = "Enabled"
         request_timeout = 30
         # pick_host_name_from_backend_http_settings = true
-        pick_host_name_from_backend_address = true
+        # pick_host_name_from_backend_address = true
         probe_interval = 30
         probe_timeout = 10
         probe_unhealthy_threshold = 5
@@ -101,3 +101,4 @@ variable "security_headers" {
 variable "security_headers_enabled" { default = false }
 
 variable "global_ssl_policy" { default = null }
+variable "pip_extra_tags" { default = {} }
