@@ -90,7 +90,7 @@ resource "azurerm_application_gateway" "gateway" {
     for_each = { for k in local.frontend_port_numbers: k => k }
 
     content {
-      name = format("port_%s",frontend_port.key)
+      name = lookup(var.frontend_port_names_overrides,frontend_port.key,format("port_%s",frontend_port.key))
       port = frontend_port.key
     }
   }
@@ -256,7 +256,7 @@ resource "azurerm_application_gateway" "gateway" {
     }
 
     
-    dynamic  "ssl_policy" {
+    dynamic "ssl_policy" {
     for_each = var.global_ssl_policy != null ? [var.global_ssl_policy] : []
 
         content {
@@ -264,6 +264,20 @@ resource "azurerm_application_gateway" "gateway" {
         min_protocol_version = var.global_ssl_policy.min_protocol_version
         cipher_suites = var.global_ssl_policy.cipher_suites
         disabled_protocols = var.global_ssl_policy.disabled_protocols
+      }
+    }
+
+    dynamic "waf_configuration" {
+    for_each = local.waf_configuration.enabled == true ? [1] : []
+
+      content {
+        enabled                  = local.waf_configuration.enabled
+        file_upload_limit_mb     = local.waf_configuration.file_upload_limit_mb
+        firewall_mode            = local.waf_configuration.firewall_mode
+        max_request_body_size_kb = local.waf_configuration.max_request_body_size_kb
+        request_body_check       = local.waf_configuration.request_body_check
+        rule_set_type            = local.waf_configuration.rule_set_type
+        rule_set_version         = local.waf_configuration.rule_set_version
       }
     }
 

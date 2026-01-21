@@ -33,6 +33,9 @@ frontend_port_numbers = distinct(flatten([
     for lK,lV in var.listeners : lV.port
   ]))
 
+waf_configuration = merge(var.default_waf_configuration,var.waf_configuration)
+
+
 ssl_certificates = {
   #TODO use local.distinct_hostnames  
   for hostname in local.distinct_hostnames : hostname => (

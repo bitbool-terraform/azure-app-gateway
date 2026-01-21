@@ -102,3 +102,21 @@ variable "security_headers_enabled" { default = false }
 
 variable "global_ssl_policy" { default = null }
 variable "pip_extra_tags" { default = {} }
+
+variable "waf_configuration" { default = {} }
+
+
+variable "default_waf_configuration" { 
+    default = {
+        enabled                  = false
+        file_upload_limit_mb     = 100
+        firewall_mode            = "Detection"
+        max_request_body_size_kb = 128
+        request_body_check       = true
+        rule_set_type            = "OWASP"
+        rule_set_version         = "3.2"
+    } 
+
+}
+
+variable "frontend_port_names_overrides" { default = {} }
