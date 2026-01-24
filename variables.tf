@@ -1,6 +1,3 @@
-#TODO remove these two below
-#variable "project" { type = string }
-#variable "systemenv" { type = string }
 variable "name" { 
     type = string 
     default ="app-gw"
@@ -120,3 +117,19 @@ variable "default_waf_configuration" {
 }
 
 variable "frontend_port_names_overrides" { default = {} }
+
+## Alerts
+variable "enable_alerts" { default = false }
+variable "backend_alerts_enable_default" { default = false }
+variable "alerts_email" { default = null }
+
+
+## Logging
+variable "enable_logging" { default = true }
+
+variable "enable_appgw_access_logs" { default = true }
+variable "enable_appgw_performance_logs" { default = true }
+variable "enable_appgw_firewall_logs" { default = true }
+
+variable "sa_account_tier" { default = "Standard" }
+variable "sa_replication_type" { default = "LRS" }
