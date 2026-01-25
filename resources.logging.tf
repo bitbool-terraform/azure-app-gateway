@@ -1,11 +1,11 @@
 resource "azurerm_storage_account" "appgw_logs" {
   count = var.enable_logging == true ? 1 : 0
 
-  name                     = format("%slogs", replace(local.app_gateway_name, "-", ""))
+  name                     = var.logs_sa_name == null ? format("%slogs", lower(replace(local.app_gateway_name, "-", ""))) : var.logs_sa_name
   resource_group_name      = var.resource_group_name
   location                 = var.location
-  account_tier             = var.sa_account_tier
-  account_replication_type = var.sa_replication_type
+  account_tier             = var.logs_sa_account_tier
+  account_replication_type = var.logs_sa_replication_type
 }
 
 resource "azurerm_monitor_diagnostic_setting" "appgw_diag" {

@@ -131,5 +131,6 @@ variable "enable_appgw_access_logs" { default = true }
 variable "enable_appgw_performance_logs" { default = true }
 variable "enable_appgw_firewall_logs" { default = true }
 
-variable "sa_account_tier" { default = "Standard" }
-variable "sa_replication_type" { default = "LRS" }
+variable "logs_sa_name" { default = null }
+variable "logs_sa_account_tier" { default = "Standard" }
+variable "logs_sa_replication_type" { default = "LRS" }
