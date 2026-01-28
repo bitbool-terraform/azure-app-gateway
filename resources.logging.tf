@@ -6,6 +6,8 @@ resource "azurerm_storage_account" "appgw_logs" {
   location                 = var.location
   account_tier             = var.logs_sa_account_tier
   account_replication_type = var.logs_sa_replication_type
+  tags                     = var.sa_tags
+
 }
 
 resource "azurerm_monitor_diagnostic_setting" "appgw_diag" {

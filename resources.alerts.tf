@@ -3,7 +3,8 @@ resource "azurerm_monitor_action_group" "appgw_alerts" {
   name                = format("%s-backend-alerts",local.app_gateway_name)
   resource_group_name = var.resource_group_name
   short_name          = "appgw-alert"
-
+  tags                = var.alert_tags
+  
   email_receiver {
     name          = "bitbool-alert-email"
     email_address = var.alerts_email
@@ -22,6 +23,7 @@ resource "azurerm_monitor_metric_alert" "appgw_backend_unhealthy" {
   enabled             = true
   frequency           = lookup(each.value,"alert_frequency","PT1M")
   window_size         = lookup(each.value,"alert_window_size","PT5M")
+  tags                = var.alert_tags
 
 criteria {
   metric_namespace = "Microsoft.Network/applicationGateways"

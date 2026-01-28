@@ -134,3 +134,7 @@ variable "enable_appgw_firewall_logs" { default = true }
 variable "logs_sa_name" { default = null }
 variable "logs_sa_account_tier" { default = "Standard" }
 variable "logs_sa_replication_type" { default = "LRS" }
+
+
+variable "alert_tags" { default = {} }
+variable "sa_tags" { default = {} }
