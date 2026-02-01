@@ -2,6 +2,7 @@
 
 | Version    | Changes |
 | -------- | ------- |
+| v1.0.5  | Removed per backend pool alerts, only generic per gateway, due to azure bug.   |
 | v1.0.4  | Added alerts/sa tagging support.   |
 | v1.0.3  | Fixed var names.   |
 | v1.0.2  | Added alerts support and sa logging archiving.   |

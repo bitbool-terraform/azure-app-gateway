@@ -10,11 +10,11 @@ gateway_tags  = var.tags
 
 backend_address_pools = var.backend_targets
 
-alertable_backend_http_settings = {
-  for k, v in merge(local.backend_http_settings,local.letsencrypt_backend_http_setting):
-  k => v
-  if (lookup(v, "enable_alerts", var.backend_alerts_enable_default)==true && var.enable_alerts==true)
-}
+# alertable_backend_http_settings = {
+#   for k, v in merge(local.backend_http_settings,local.letsencrypt_backend_http_setting):
+#   k => v
+#   if (lookup(v, "enable_alerts", var.backend_alerts_enable_default)==true && var.enable_alerts==true)
+# }
 
 mi_id = var.app_gw_custom_mi == "" ? azurerm_user_assigned_identity.gateway_identity[0].id : data.azurerm_user_assigned_identity.gateway_identity[0].id
 

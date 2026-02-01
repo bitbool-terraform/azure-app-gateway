@@ -13,16 +13,16 @@ resource "azurerm_monitor_action_group" "appgw_alerts" {
 
 
 resource "azurerm_monitor_metric_alert" "appgw_backend_unhealthy" {
-  for_each = local.alertable_backend_http_settings
+  count = var.enable_alerts == true ? 1 : 0
   
-  name                = format("%s-backend-unhealthy-%s",local.app_gateway_name,each.key)
+  name                = format("%s-backend-unhealthy",local.app_gateway_name)
   resource_group_name = var.resource_group_name
   scopes              = [azurerm_application_gateway.gateway.id]
-  description         = format("%s backend health check for %s",local.app_gateway_name,each.key)
-  severity            = lookup(each.value,"alert_severity",1)
+  description         = format("%s backend health check",local.app_gateway_name)
+  severity            = var.alert_severity
   enabled             = true
-  frequency           = lookup(each.value,"alert_frequency","PT1M")
-  window_size         = lookup(each.value,"alert_window_size","PT5M")
+  frequency           = var.alert_frequency
+  window_size         = var.alert_window_size
   tags                = var.alert_tags
 
 criteria {
@@ -31,12 +31,6 @@ criteria {
   aggregation      = "Average"
   operator         = "GreaterThan"
   threshold        = 0
-
-  dimension {
-    name     = "BackendSettingsPool"
-    operator = "Include"
-    values   = [each.key]
-  }
 }
 
   action {

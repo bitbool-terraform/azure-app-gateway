@@ -120,8 +120,10 @@ variable "frontend_port_names_overrides" { default = {} }
 
 ## Alerts
 variable "enable_alerts" { default = false }
-variable "backend_alerts_enable_default" { default = false }
 variable "alerts_email" { default = null }
+variable "alert_severity" { default = 1 }
+variable "alert_frequency" { default = "PT1M" }
+variable "alert_window_size" { default = "PT5M" }
 
 
 ## Logging
