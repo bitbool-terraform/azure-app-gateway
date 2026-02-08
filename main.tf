@@ -1,62 +1,58 @@
-data "azurerm_key_vault" "key_vault" {
-  name                = var.key_vault_name
-  resource_group_name = var.resource_group_name
-}
-
+#TODO REMOVE
 data "azurerm_key_vault_certificate" "key_vault_certificate" {
   for_each = local.ssl_certificates
  
   name                = each.value
-  key_vault_id = data.azurerm_key_vault.key_vault.id
+  key_vault_id = var.app_gw.key_vault_id
 }
 
 
 
 resource "azurerm_public_ip" "gateway_pip" {
   name                = local.public_ip_name
-  resource_group_name = var.resource_group_name
-  location            = var.location
+  resource_group_name = var.app_gw.resource_group
+  location            = var.app_gw.location
   allocation_method   = "Static"
-  zones               = var.pip_zones
-  tags                = merge(local.gateway_tags,var.pip_extra_tags)
+  zones               = local.pip_zones
+  tags                = merge(local.gateway_tags,lookup(var.app_gw,"pip_extra_tags",{}))
 }
 
 
 resource "azurerm_user_assigned_identity" "gateway_identity" {
-  count = var.app_gw_custom_mi == "" ? 1 : 0
+  count = lookup(var.app_gw,"custom_mi",null) == null ? 1 : 0
   name                = format("%s-mi",local.app_gateway_name)
-  resource_group_name = var.resource_group_name
-  location            = var.location
+  resource_group_name = var.app_gw.resource_group
+  location            = var.app_gw.location
 }
 
 data "azurerm_user_assigned_identity" "gateway_identity" {
-  count = var.app_gw_custom_mi != "" ? 1 : 0    
-  name                = var.app_gw_custom_mi
-  resource_group_name = var.resource_group_name
+  count = lookup(var.app_gw,"custom_mi",null) != null ? 1 : 0    
+  name                = var.app_gw.custom_mi
+  resource_group_name = var.app_gw.resource_group
 }
 
 resource "azurerm_application_gateway" "gateway" {
   name                = local.app_gateway_name
-  resource_group_name = var.resource_group_name
-  location            = var.location
+  resource_group_name = var.app_gw.resource_group
+  location            = var.app_gw.location
   tags                = local.gateway_tags
-  zones               = var.zones
-  enable_http2        = var.enable_http2
+  zones               = local.zones
+  enable_http2        = local.enable_http2
 
-  firewall_policy_id    = var.firewall_policy_id
+  firewall_policy_id    = lookup(var.app_gw,"firewall_policy_id",null)
 
   sku {
-    name     = var.sku_name
-    tier     = var.sku_name
-    capacity = var.sku_capacity
+    name     = local.sku_name
+    tier     = local.sku_name
+    capacity = local.sku_capacity
   }
 
   dynamic "autoscale_configuration" {
-    for_each = var.autoscale_configuration == true ? [""] : []
+    for_each = lookup(var.app_gw,"autoscale_configuration",var.default_autoscale_configuration) == true ? [""] : []
 
     content {
-      min_capacity     = var.autoscale_min_capacity
-      max_capacity     = var.autoscale_max_capacity
+      min_capacity     = lookup(var.app_gw,"autoscale_min_capacity",null)
+      max_capacity     = lookup(var.app_gw,"autoscale_max_capacity",null)
     }
   }
 
@@ -66,18 +62,18 @@ resource "azurerm_application_gateway" "gateway" {
   }
 
   gateway_ip_configuration {
-    name      = var.gateway_ip_name
-    subnet_id = var.subnet_id
+    name      = local.gateway_ip_name
+    subnet_id = var.app_gw.subnet_id
   }
 
   frontend_ip_configuration {
-    name                 = var.frontend_ip_name
+    name                 = local.frontend_ip_name
     public_ip_address_id = azurerm_public_ip.gateway_pip.id
   }
 
 
   dynamic "backend_address_pool" {
-    for_each = merge(local.backend_address_pools,var.letsencrypt_backend_target)
+    for_each = merge(local.backend_address_pools,local.letsencrypt_backend_target)
 
     content {
       name         = backend_address_pool.key
@@ -90,7 +86,7 @@ resource "azurerm_application_gateway" "gateway" {
     for_each = { for k in local.frontend_port_numbers: k => k }
 
     content {
-      name = lookup(var.frontend_port_names_overrides,frontend_port.key,format("port_%s",frontend_port.key))
+      name = lookup(lookup(var.app_gw,"frontend_port_names_overrides",{}),frontend_port.key,format("port_%s",frontend_port.key))
       port = frontend_port.key
     }
   }
@@ -109,7 +105,7 @@ resource "azurerm_application_gateway" "gateway" {
 
     content {
       name                           = http_listener.key
-      frontend_ip_configuration_name = var.frontend_ip_name
+      frontend_ip_configuration_name = local.frontend_ip_name
       frontend_port_name             = http_listener.value.port
       protocol                       = http_listener.value.protocol
       host_names                     = http_listener.value.hostnames
@@ -225,7 +221,7 @@ resource "azurerm_application_gateway" "gateway" {
     # }
 
     dynamic "redirect_configuration" { # /http-listener
-      for_each = var.redirections
+      for_each = lookup(var.app_gw,"redirections",{})
 
       content {
           name                 = redirect_configuration.key
@@ -238,7 +234,7 @@ resource "azurerm_application_gateway" "gateway" {
     }
 
     dynamic "ssl_profile" {
-      for_each = var.ssl_profiles 
+      for_each = local.ssl_profiles 
 
       content {
         name                                 = ssl_profile.key
@@ -257,13 +253,13 @@ resource "azurerm_application_gateway" "gateway" {
 
     
     dynamic "ssl_policy" {
-    for_each = var.global_ssl_policy != null ? [var.global_ssl_policy] : []
+    for_each = lookup(var.app_gw,"global_ssl_policy",null) != null ? [var.app_gw.global_ssl_policy] : []
 
         content {
-        policy_type          = var.global_ssl_policy.policy_type
-        min_protocol_version = var.global_ssl_policy.min_protocol_version
-        cipher_suites = var.global_ssl_policy.cipher_suites
-        disabled_protocols = var.global_ssl_policy.disabled_protocols
+        policy_type          = var.app_gw.global_ssl_policy.policy_type
+        min_protocol_version = var.app_gw.global_ssl_policy.min_protocol_version
+        cipher_suites = var.app_gw.global_ssl_policy.cipher_suites
+        disabled_protocols = var.app_gw.global_ssl_policy.disabled_protocols
       }
     }
 
@@ -282,7 +278,7 @@ resource "azurerm_application_gateway" "gateway" {
     }
 
     dynamic "rewrite_rule_set" {
-      for_each = var.security_headers_enabled ? var.security_headers : {}
+      for_each = lookup(var.app_gw,"security_headers_enabled",var.default_security_headers_enabled) ? lookup(var.app_gw,"security_headers",var.default_security_headers) : {}
 
       content {
         name = format("security_headers_%s",rewrite_rule_set.key)
@@ -306,15 +302,15 @@ resource "azurerm_application_gateway" "gateway" {
 
 
 data "azurerm_network_interface" "nic" {
-  for_each =  { for k,v in merge(local.backend_address_pools,var.letsencrypt_backend_target): k=>v if lookup(v,"nic","") != "" }
+  for_each =  { for k,v in merge(local.backend_address_pools,local.letsencrypt_backend_target): k=>v if lookup(v,"nic","") != "" }
 
   name                = each.value.nic
-  resource_group_name = var.resource_group_name
+  resource_group_name = var.app_gw.resource_group
 }
 
 resource "azurerm_network_interface_application_gateway_backend_address_pool_association" "nic_association" {
 
-  for_each =  { for k,v in merge(local.backend_address_pools,var.letsencrypt_backend_target): k=>v if lookup(v,"nic","") != "" }
+  for_each =  { for k,v in merge(local.backend_address_pools,local.letsencrypt_backend_target): k=>v if lookup(v,"nic","") != "" }
 
   network_interface_id    = data.azurerm_network_interface.nic[each.key].id
   ip_configuration_name   = data.azurerm_network_interface.nic[each.key].ip_configuration[0].name
