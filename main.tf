@@ -1,10 +1,10 @@
-#TODO REMOVE
-data "azurerm_key_vault_certificate" "key_vault_certificate" {
-  for_each = local.ssl_certificates
+# #TODO REMOVE
+# data "azurerm_key_vault_certificate" "key_vault_certificate" {
+#   for_each = local.ssl_certificates
  
-  name                = each.value
-  key_vault_id = var.app_gw.key_vault_id
-}
+#   name                = each.value
+#   key_vault_id = var.app_gw.key_vault_id
+# }
 
 
 
@@ -95,8 +95,8 @@ resource "azurerm_application_gateway" "gateway" {
     for_each = local.ssl_certificates
 
     content {
-      name                = ssl_certificate.value
-      key_vault_secret_id = data.azurerm_key_vault_certificate.key_vault_certificate[ssl_certificate.key].versionless_secret_id #Versionless required for cert rotation
+      name                = ssl_certificate.value.name
+      key_vault_secret_id = ssl_certificate.value.id
     }
   }
 

@@ -6,7 +6,7 @@
 
 | Version    | Changes |
 | -------- | ------- |
-| v2.0.0  | Major upgrade: certs input via resource/data (mod agnostic to how they are created), most inputs moved to `app_gw` object for better fallbacks, default values gathered to vars.|
+| v2.0.0  | Major upgrade: certs input via resource/data (mod agnostic to how they are created), most inputs moved to `app_gw` object for better fallbacks, default values gathered to vars. Now, certs are to 1-1 correspondence with listeners, not hostnames (as it was in v1). That enables SAN usage & multiple hostnames/listener. Azure imposes exactly 1 cert per ssl listener, but multiple hostnames.|
 
 
 #### Version 1

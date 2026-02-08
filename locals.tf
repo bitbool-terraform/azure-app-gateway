@@ -36,7 +36,7 @@ http_listeners = {
     hostnames       = lV.hostnames
     port            = format("port_%s",lookup(lV,"port",lookup(lV,"protocol","Https") == "Http" ? 80 : 443 ))
     protocol        = lookup(lV,"protocol","Https")
-    ssl_certificate_name = lookup(lV,"protocol","Https") == "Http" ? null : local.ssl_certificates[lV.hostnames[0]]
+    ssl_certificate_name = lookup(lV,"protocol","Https") == "Http" ? null : local.ssl_certificates[lK].name
   }
 }
 
@@ -55,18 +55,19 @@ logging = merge(var.default_logging,lookup(var.app_gw,"logging",{}))
 alerts_tags = lookup(var.app_gw,"alerts_tags",null)
 sa_tags = lookup(var.app_gw,"sa_tags",null)
 
+ssl_certificates = var.app_gw.certificates
 
 
-ssl_certificates = {
-  #TODO use local.distinct_hostnames  
-  for hostname in local.distinct_hostnames : hostname => (
-    can(
-      [for k, cert in var.certificates_custom : cert.name if cert.hostname == hostname][0]
-    )
-    ? [for k, cert in var.certificates_custom : cert.name if cert.hostname == hostname][0]
-    : replace(hostname, ".", "-")
-  )
-}
+# ssl_certificates = {
+#   #TODO use local.distinct_hostnames  
+#   for hostname in local.distinct_hostnames : hostname => (
+#     can(
+#       [for k, cert in var.certificates_custom : cert.name if cert.hostname == hostname][0]
+#     )
+#     ? [for k, cert in var.certificates_custom : cert.name if cert.hostname == hostname][0]
+#     : replace(hostname, ".", "-")
+#   )
+# }
 
 
 letsencrypt_backend_http_setting = local.letsencrypt_backend_target != null ? {

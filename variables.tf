@@ -27,6 +27,7 @@ variable "default_pip_zones" {
     }
 
 variable "default_security_headers_enabled" { default = false }
+variable "default_enable_http2" { default = true }
 
 variable "default_security_headers" {
   type = map(map(string))
@@ -91,18 +92,3 @@ variable "default_logging" {
         sa_replication_type = "LRS"
     }
 }
-
-variable "default_enable_http2" { default = true }
-
-
-
-
-# variable "listeners" {}
-# variable "redirections" { default = {} }
-# variable "backend_targets" {}
-
-
-
-
-variable "certificates_custom" { default = {} }
-
