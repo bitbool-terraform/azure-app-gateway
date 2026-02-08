@@ -26,10 +26,10 @@ pip_zones = lookup(var.app_gw,"pip_zones",var.default_pip_zones)
 
 letsencrypt_backend_target = lookup(var.app_gw,"letsencrypt_backend_target",null)
 
+
 distinct_hostnames = distinct(flatten([
     for lK,lV in var.app_gw.listeners : lV.hostnames
   ]))
-
 
 http_listeners = {
   for lK,lV in var.app_gw.listeners: lK => {
@@ -57,19 +57,6 @@ sa_tags = lookup(var.app_gw,"sa_tags",null)
 
 ssl_certificates = var.app_gw.certificates
 
-
-# ssl_certificates = {
-#   #TODO use local.distinct_hostnames  
-#   for hostname in local.distinct_hostnames : hostname => (
-#     can(
-#       [for k, cert in var.certificates_custom : cert.name if cert.hostname == hostname][0]
-#     )
-#     ? [for k, cert in var.certificates_custom : cert.name if cert.hostname == hostname][0]
-#     : replace(hostname, ".", "-")
-#   )
-# }
-
-
 letsencrypt_backend_http_setting = local.letsencrypt_backend_target != null ? {
     "${local.letsencrypt_validator_http_settings_name}" = {
         port                    = try(local.letsencrypt_backend_target.letsencrypt.port,null)
@@ -85,10 +72,7 @@ letsencrypt_backend_http_setting = local.letsencrypt_backend_target != null ? {
         probe_unhealthy_threshold = 5
         status_code             = [200]
     }
-
-
 } : {}
-
 
 backend_http_settings = merge(flatten([
   for btK,btV in local.backend_address_pools: [
