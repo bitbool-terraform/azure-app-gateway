@@ -66,6 +66,7 @@ variable "default_alerts" {
         severity = 1
         frequency = "PT1M"
         window_size = "PT5M"
+        threshold = 0.1
     }
 }
 

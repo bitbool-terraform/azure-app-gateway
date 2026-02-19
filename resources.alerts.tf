@@ -29,7 +29,7 @@ criteria {
   metric_name      = "UnhealthyHostCount"
   aggregation      = "Average"
   operator         = "GreaterThan"
-  threshold        = 0
+  threshold        = local.alerts.threshold
 }
 
   action {
