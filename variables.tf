@@ -140,3 +140,4 @@ variable "logs_sa_replication_type" { default = "LRS" }
 
 variable "alert_tags" { default = {} }
 variable "sa_tags" { default = {} }
+variable "trusted_root_certificates" { default = {} }

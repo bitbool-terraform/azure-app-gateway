@@ -159,6 +159,7 @@ resource "azurerm_application_gateway" "gateway" {
           host_name                           = lookup(backend_http_settings.value,"host_name",null)
           pick_host_name_from_backend_address = lookup(backend_http_settings.value,"pick_host_name_from_backend_address",lookup(backend_http_settings.value,"host_name",null) == null ? true : false)
           probe_name                          = backend_http_settings.key
+          trusted_root_certificate_names      = lookup(backend_http_settings.value,"trusted_root_certificate_names",null)
       }
     }
 
@@ -278,6 +279,15 @@ resource "azurerm_application_gateway" "gateway" {
         request_body_check       = local.waf_configuration.request_body_check
         rule_set_type            = local.waf_configuration.rule_set_type
         rule_set_version         = local.waf_configuration.rule_set_version
+      }
+    }
+
+    dynamic "trusted_root_certificate" {
+    for_each = var.trusted_root_certificates != null ? var.trusted_root_certificates : {}
+
+      content {
+          name = trusted_root_certificate.key
+          data = trusted_root_certificate.value
       }
     }
 
