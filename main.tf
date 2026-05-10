@@ -308,6 +308,28 @@ resource "azurerm_application_gateway" "gateway" {
         }
       }
     }
+    # Request headers
+    dynamic "rewrite_rule_set" {
+      for_each = lookup(var.app_gw,"request_headers",var.default_request_headers)
+
+      content {
+        name = format("request_headers_%s",rewrite_rule_set.key)
+
+        rewrite_rule {
+          name          = "add-headers"
+          rule_sequence = 10
+
+          dynamic "request_header_configuration" {
+            for_each = rewrite_rule_set.value
+
+            content {
+              header_name  = request_header_configuration.key
+              header_value = request_header_configuration.value
+            }
+          }
+        }
+      }
+    }
 }
 
 

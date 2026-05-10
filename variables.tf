@@ -43,6 +43,12 @@ variable "default_security_headers" {
   }
 }
 
+variable "default_request_headers" {
+  type = map(map(string))
+  default = {}
+  }
+
+
 variable "default_backend_settings" {
     default = {
         port = 443
