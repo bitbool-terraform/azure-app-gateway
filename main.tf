@@ -1,13 +1,3 @@
-# #TODO REMOVE
-# data "azurerm_key_vault_certificate" "key_vault_certificate" {
-#   for_each = local.ssl_certificates
- 
-#   name                = each.value
-#   key_vault_id = var.app_gw.key_vault_id
-# }
-
-
-
 resource "azurerm_public_ip" "gateway_pip" {
   name                = local.public_ip_name
   resource_group_name = var.app_gw.resource_group
@@ -17,27 +7,13 @@ resource "azurerm_public_ip" "gateway_pip" {
   tags                = merge(local.gateway_tags,lookup(var.app_gw,"pip_extra_tags",{}))
 }
 
-
-resource "azurerm_user_assigned_identity" "gateway_identity" {
-  count = lookup(var.app_gw,"custom_mi",null) == null ? 1 : 0
-  name                = format("%s-mi",local.app_gateway_name)
-  resource_group_name = var.app_gw.resource_group
-  location            = var.app_gw.location
-}
-
-data "azurerm_user_assigned_identity" "gateway_identity" {
-  count = lookup(var.app_gw,"custom_mi",null) != null ? 1 : 0    
-  name                = var.app_gw.custom_mi
-  resource_group_name = var.app_gw.resource_group
-}
-
 resource "azurerm_application_gateway" "gateway" {
   name                = local.app_gateway_name
   resource_group_name = var.app_gw.resource_group
   location            = var.app_gw.location
   tags                = local.gateway_tags
   zones               = local.zones
-  enable_http2        = local.enable_http2
+  http2_enabled        = local.http2_enabled
 
   firewall_policy_id    = lookup(var.app_gw,"firewall_policy_id",null)
 
@@ -58,7 +34,7 @@ resource "azurerm_application_gateway" "gateway" {
 
   identity {
       type         = "UserAssigned"
-      identity_ids = [local.mi_id]
+      identity_ids = lookup(var.app_gw,"identity_ids",[])
   }
 
   gateway_ip_configuration {
@@ -158,9 +134,6 @@ resource "azurerm_application_gateway" "gateway" {
           trusted_root_certificate_names      = lookup(backend_http_settings.value,"trusted_root_certificate_names",null)
       }
     }
-
-
-
 
     dynamic "request_routing_rule" {#/listener
       for_each = local.http_listeners
@@ -348,4 +321,3 @@ resource "azurerm_network_interface_application_gateway_backend_address_pool_ass
   ip_configuration_name   = data.azurerm_network_interface.nic[each.key].ip_configuration[0].name
   backend_address_pool_id = local.agw_backend_pool_ids[each.key]
 }
-

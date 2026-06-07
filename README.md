@@ -6,6 +6,7 @@
 
 | Version    | Changes |
 | -------- | ------- |
+| v2.2.0 | Fixed identity list issues and deprecated `enable_http2` variable.   |
 | v2.1.0 | Added custom request headers rewrite.   |
 | v2.0.2 | Added trusted root certs capability.   |
 | v2.0.1 | Added longer alert threshold option.   |

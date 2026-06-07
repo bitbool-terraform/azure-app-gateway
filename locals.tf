@@ -10,8 +10,6 @@ gateway_tags  = lookup(var.app_gw,"tags",{})
 
 backend_address_pools = var.app_gw.backend_targets
 
-mi_id = lookup(var.app_gw,"custom_mi",null) == null ? azurerm_user_assigned_identity.gateway_identity[0].id : data.azurerm_user_assigned_identity.gateway_identity[0].id
-
 sku_name = lookup(var.app_gw,"sku_name",var.default_sku_name)
 sku_capacity = lookup(var.app_gw,"sku_capacity",var.default_sku_capacity)
 
@@ -46,7 +44,7 @@ frontend_port_numbers = distinct(flatten([
 
 waf_configuration = merge(var.default_waf_configuration,lookup(var.app_gw,"waf_configuration",{}))
 
-enable_http2 = lookup(var.app_gw,"enable_http2",var.default_enable_http2)
+http2_enabled = lookup(var.app_gw,"http2_enabled",var.default_http2_enabled)
 
 alerts = merge(var.default_alerts,lookup(var.app_gw,"alerts",{}))
 

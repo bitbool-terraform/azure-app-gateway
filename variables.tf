@@ -27,7 +27,7 @@ variable "default_pip_zones" {
     }
 
 variable "default_security_headers_enabled" { default = false }
-variable "default_enable_http2" { default = true }
+variable "default_http2_enabled" { default = true }
 
 variable "default_security_headers" {
   type = map(map(string))
