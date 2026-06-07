@@ -42,6 +42,8 @@ resource "azurerm_application_gateway" "gateway" {
   tags                = local.gateway_tags
   zones               = var.zones
   enable_http2        = var.enable_http2
+  fips_enabled        = false
+  force_firewall_policy_association = false
 
   firewall_policy_id    = var.firewall_policy_id
 
