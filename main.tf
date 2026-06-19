@@ -303,6 +303,33 @@ resource "azurerm_application_gateway" "gateway" {
         }
       }
     }
+
+
+    dynamic "rewrite_rule_set" { # Custom rewrite rule sets
+      for_each = lookup(var.app_gw,"custom_rewrite_rule_sets",{})
+
+      content {
+        name = rewrite_rule_set.value.name
+
+        rewrite_rule {
+          name          = rewrite_rule_set.value.rewrite_rule.name
+          rule_sequence = rewrite_rule_set.value.rewrite_rule.rule_sequence
+
+          condition {
+              ignore_case = rewrite_rule_set.value.condition.ignore_case
+              negate      = rewrite_rule_set.value.condition.negate
+              pattern     = rewrite_rule_set.value.condition.pattern
+              variable    = rewrite_rule_set.value.condition.variable
+            }
+          url {
+              components   = rewrite_rule_set.value.url.components
+              path         = rewrite_rule_set.value.url.path
+              reroute      = rewrite_rule_set.value.url.reroute
+
+            }
+        }
+      }
+    }
 }
 
 
