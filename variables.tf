@@ -68,7 +68,6 @@ variable "default_backend_settings" {
 variable "default_alerts" { 
     default = {
         enable = false
-        email = "alerts@bitbool.net"
         severity = 1
         frequency = "PT1M"
         window_size = "PT5M"
