@@ -6,7 +6,7 @@
 
 | Version    | Changes |
 | -------- | ------- |
-| v2.4.0 |  Fixed alerting (external ag, dimensions reporting capability ). |
+| v2.4.0 |  Fixed alerting (external ag, dimensions reporting capability). |
 | v2.3.0 |  Added custom rewrite rule sets for path rewriting.   |
 | v2.2.0 | Fixed identity list issues and deprecated `enable_http2` variable.   |
 | v2.1.0 | Added custom request headers rewrite.   |
